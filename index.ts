@@ -4,6 +4,28 @@ import * as optimism from "@eth-optimism/sdk";
 
 const EXIT_ERROR = 1;
 
+const L1GasPriceAbi = [
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "_data",
+        "type": "bytes"
+      }
+    ],
+    "name": "getL1Fee",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+]
+
 // NOTE: https://docs.optimism.io/builders/app-developers/tutorials/sdk-estimate-costs を再現
 const proc = async () => {
   const ethersProvider = new ethers.providers.StaticJsonRpcProvider("https://rpc.minato.soneium.org/", 1946);
@@ -16,6 +38,8 @@ const proc = async () => {
     gasPrice: await provider.getGasPrice(),
   });
 
+  /* Optimism SDK を使ったやり方 */
+
   const gasLimit = tx.gasLimit as any
   const gasPrice = tx.maxFeePerGas as any;
   const l2CostEstimate = gasLimit.mul(gasPrice);
@@ -26,6 +50,31 @@ const proc = async () => {
 
   const totalSum = l2CostEstimate.add(l1CostEstimate);
   console.log("totalSum", ethers.utils.formatEther(totalSum), "ETH");
+
+  const optimismTotalSum = await optimism.estimateTotalGasCost(provider, tx);
+  console.log("estimateTotalGasCost", ethers.utils.formatEther(optimismTotalSum), "ETH");
+
+  /* 直接 GasPriseOracle を見に行くやり方 */
+
+  const unsignedTx = {
+    type: tx.type,
+    to: tx.to,
+    nonce: tx.nonce ? parseInt(tx.nonce.toString()) : (await wallet.getTransactionCount()),
+    gasLimit: tx.gasLimit,
+    gasPrice: tx.gasPrice,
+    data: tx.data,
+    value: tx.value,
+    chainId: tx.chainId,
+    maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
+    maxFeePerGas: tx.maxFeePerGas,
+    accessList: tx.accessList,
+  };
+  const serializeTx = ethers.utils.serializeTransaction(unsignedTx);
+  console.log("serializeTx", serializeTx);
+
+  const gasPriceOracle = new ethers.Contract("0x420000000000000000000000000000000000000F", L1GasPriceAbi, provider);
+  const l1Fee = await gasPriceOracle.getL1Fee(serializeTx);
+  console.log("getL1Fee", ethers.utils.formatEther(l1Fee), "ETH");
 }
 
 proc().catch(err => {
