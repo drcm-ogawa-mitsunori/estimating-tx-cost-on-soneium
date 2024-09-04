@@ -1,7 +1,5 @@
-import "dotenv/config";
 import { createPublicClient, http, defineChain, serializeTransaction, parseEther, formatEther, TransactionSerializable } from "viem";
-import { privateKeyToAccount } from 'viem/accounts'
-import { EXIT_ERROR, GAS_PRICE_ORACLE_ABI, SONEIUM_GAS_PRICE_ORACLE_CONTRACT_ADDRESS, SONEIUM_MINATO_CHAIN_ID, SONEIUM_MINATO_JSON_RPC_URL } from "./constants";
+import { EXIT_ERROR, FROM_ADDRESS, GAS_PRICE_ORACLE_ABI, SONEIUM_GAS_PRICE_ORACLE_CONTRACT_ADDRESS, SONEIUM_MINATO_CHAIN_ID, SONEIUM_MINATO_JSON_RPC_URL, TO_ADDRESS } from "./constants";
 
 export const soneiumMinato = defineChain({
   id: SONEIUM_MINATO_CHAIN_ID,
@@ -32,15 +30,14 @@ const proc = async () => {
     chain: soneiumMinato,
     transport: http(),
   });
-  const account = privateKeyToAccount(`0x${process.env.WALLET_PRIVATE_KEY}`);
 
   const feePerGas = await publicClient.estimateFeesPerGas();
   console.log("feePerGas", feePerGas);
   
   const tx: TransactionSerializable = {
     type: "eip1559",
-    to: "0xa7cf71d2383c5d20960Ed4557E2f05BB3f23cBA2",
-    nonce: await publicClient.getTransactionCount({ address: account.address }),
+    to: TO_ADDRESS,
+    nonce: await publicClient.getTransactionCount({ address: FROM_ADDRESS }),
     gas: 21000n,
     value: parseEther('0.1'),
     chainId: publicClient.chain.id,
